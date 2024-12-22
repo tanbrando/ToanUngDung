@@ -82,26 +82,36 @@ Matrix calculateSigma(const vector<double> &eigenValues, int m, int n) {
 }
 
 Matrix calculateU(const Matrix &A, const Matrix &V, const Matrix &Sigma) {
-    int m = A.size(), n = V[0].size();
-    Matrix U(m, vector<double>(n, 0));
+    int m = A.size();        // Số dòng của A
+    int n = A[0].size();     // Số cột của A
+    int r = Sigma.size();    // Số giá trị kỳ dị (rank của A)
 
-    for (int i = 0; i < n; ++i) {
+    Matrix U(m, vector<double>(r, 0));  // Kích thước U: m x r
+
+    for (int i = 0; i < r; ++i) {
+        // Lấy giá trị kỳ dị sigma_i
+        double sigma = Sigma[i][i];
+        if (sigma == 0) {
+            cerr << "Lỗi: Giá trị kỳ dị sigma[" << i << "] = 0." << endl;
+            continue; // Bỏ qua trường hợp giá trị kỳ dị bằng 0
+        }
+
+        // Lấy cột thứ i của V (V[:, i])
         vector<double> vi(n);
         for (int j = 0; j < n; ++j)
             vi[j] = V[j][i];
 
+        // Tính toán A * V[:, i]
         vector<double> ui(m, 0);
         for (int j = 0; j < m; ++j)
             for (int k = 0; k < n; ++k)
                 ui[j] += A[j][k] * vi[k];
-        
-        double norm = 0;
-        for (double x : ui)
-            norm += x * x;
-        norm = sqrt(norm);
+
+        // Chuẩn hóa bằng cách chia cho sigma_i
         for (int j = 0; j < m; ++j)
-            U[j][i] = ui[j] / norm;
+            U[j][i] = ui[j] / sigma;
     }
+
     return U;
 }
 
