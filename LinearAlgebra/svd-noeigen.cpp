@@ -406,6 +406,7 @@ Matrix calculateU(const Matrix& A, const Matrix& V, const Matrix& Sigma) {
             vector<double> Ui = multiplyScalarMatrixVector((1.0/Sigma[i][i]),A,getVectorFromMatrix(V,i));
             for(int j = 0; j < m; j++) {
                 U[j][i] = Ui[j];
+                cout << "";
             }
         }
     }
