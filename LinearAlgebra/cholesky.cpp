@@ -2,8 +2,48 @@
 
 using namespace std;
 const int MAX =100;
+bool isSquare(int matrix[][MAX], int n) {
+    return n > 0;
+}
+
+// Kiểm tra ma trận đối xứng
+bool isSymmetric(int matrix[][MAX], int n) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (matrix[i][j] != matrix[j][i]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// Kiểm tra ma trận xác định dương
+bool isPositiveDefinite(int matrix[][MAX], int n) {
+    for (int i = 0; i < n; i++) {
+        if (matrix[i][i] <= 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void Cholesky_Decomposition(int matrix[][MAX],int n)
 {
+    if (!isSquare(matrix, n)) {
+        cout << "Matrix is not square!" << endl;
+        return;
+    }
+
+    if (!isSymmetric(matrix, n)) {
+        cout << "Matrix is not symmetric!" << endl;
+        return;
+    }
+
+    if (!isPositiveDefinite(matrix, n)) {
+        cout << "Matrix is not positive definite!" << endl;
+        return;
+    }
     int lower[n][n];
     memset(lower,0,sizeof(lower));
     for(int i =0;i < n;i++) {
