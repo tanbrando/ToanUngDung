@@ -88,6 +88,59 @@ Matrix calculateSigma(const vector<double> &eigenValues, int m, int n) {
     return Sigma;
 }
 
+void NormalizeVector(vector<double>& A) { 
+    double sum = 0; 
+    int size = A.size(); 
+    for (int i = 0; i < size; i++) { 
+        if (abs(A[i]) < epsilon) { 
+            A[i] = 0; 
+        } 
+        sum += A[i] * A[i]; 
+    } 
+    double length = sqrt(sum); 
+    for (int i = 0; i < size; i++) { 
+        A[i] = A[i] / length; 
+    } 
+} 
+
+void FindUi_WithEigenValueIsZero(vector<vector<double>>& U, int i, int m) { 
+    // Tạo vector ngẫu nhiên
+    vector<double> ei(m, 0);
+    for (int k = 0; k < m; ++k) {
+        ei[k] = static_cast<double>(rand()) / RAND_MAX; // Random values
+    }
+
+    vector<double> res(m, 0); 
+    NormalizeVector(ei); 
+
+    // Thực hiện trực giao hóa với các cột đã có
+    for (int k = 0; k < i; k++) { 
+        // Tính dot product
+        double dot = 0;
+        for (int j = 0; j < m; ++j) {
+            dot += U[j][k] * ei[j];  // U.col(k) dot ei
+        }
+
+        // Trừ projection từ ei
+        for (int j = 0; j < m; ++j) {
+            res[j] += dot * U[j][k];  // res = res + dot * U.col(k)
+        }
+    }
+
+    // Subtract the result from ei to make it orthogonal
+    for (int j = 0; j < m; ++j) {
+        ei[j] -= res[j];
+    }
+
+    // Chuẩn hóa lại vector
+    NormalizeVector(ei); 
+
+    // Lưu cột vào ma trận U
+    for (int j = 0; j < m; ++j) {
+        U[j][i] = ei[j];  // U.col(i) = ei
+    }
+}
+
 Matrix calculateU(const Matrix &A, const Matrix &V, const Matrix &Sigma) {
     int m = A.size();
     int n = A[0].size();
@@ -139,33 +192,7 @@ Matrix calculateU(const Matrix &A, const Matrix &V, const Matrix &Sigma) {
 
     // Hoàn thiện các cột còn thiếu bằng trực giao hóa
     for (int i = validColumns; i < m; ++i) {
-        vector<double> orthogonal(m, 0);
-        orthogonal[i] = 1.0;
-
-        // Trực giao hóa với các cột đã có
-        for (int j = 0; j < validColumns; ++j) {
-            double dot = 0;
-            for (int k = 0; k < m; ++k)
-                dot += orthogonal[k] * U[k][j];
-
-            for (int k = 0; k < m; ++k)
-                orthogonal[k] -= dot * U[k][j];
-        }
-
-        // Tính lại norm của cột
-        double norm = 0;
-        for (double x : orthogonal)
-            norm += x * x;
-        norm = sqrt(norm);
-
-        // Kiểm tra lại norm trước khi chuẩn hóa
-        if (norm < epsilon) {
-            continue;
-        }
-
-        // Chuẩn hóa và lưu cột vào U
-        for (int j = 0; j < m; ++j)
-            U[j][i] = orthogonal[j] / norm;
+        FindUi_WithEigenValueIsZero(U,i,m);
     }
 
     Matrix newU(m, vector<double>(m, 0));
