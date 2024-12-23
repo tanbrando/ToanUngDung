@@ -6,6 +6,8 @@
 using namespace std;
 using Matrix = vector<vector<double>>;
 
+int epsilon = 1e-5;
+
 Matrix transposeMatrix(const Matrix &A) {
     int m = A.size(), n = A[0].size();
     Matrix AT(n, vector<double>(m));
@@ -76,8 +78,13 @@ Matrix orthonormalize(const Matrix &V) {
 Matrix calculateSigma(const vector<double> &eigenValues, int m, int n) {
     int r = min(m, n);
     Matrix Sigma(m, vector<double>(n, 0));
-    for (int i = 0; i < r; ++i)
-        Sigma[i][i] = sqrt(eigenValues[i]);
+    for (int i = 0; i < r; ++i) {
+        if (eigenValues[i] > epsilon) { // Bỏ qua trị riêng nhỏ hơn ngưỡng
+            Sigma[i][i] = sqrt(eigenValues[i]);
+        } else {
+            Sigma[i][i] = 0; // Đặt giá trị bằng 0 nếu trị riêng nhỏ
+        }
+    }
     return Sigma;
 }
 
@@ -86,14 +93,15 @@ Matrix calculateU(const Matrix &A, const Matrix &V, const Matrix &Sigma) {
     int n = A[0].size();     // Số cột của A
     int r = Sigma.size();    // Số giá trị kỳ dị (rank của A)
 
-    Matrix U(m, vector<double>(r, 0));  // Kích thước U: m x r
+    Matrix U(m, vector<double>(m, 0));  // Kích thước U: m x m
 
+    int validColumns = 0; // Đếm số cột hợp lệ trong U
     for (int i = 0; i < r; ++i) {
         // Lấy giá trị kỳ dị sigma_i
         double sigma = Sigma[i][i];
-        if (sigma == 0) {
-            cerr << "Lỗi: Giá trị kỳ dị sigma[" << i << "] = 0." << endl;
-            continue; // Bỏ qua trường hợp giá trị kỳ dị bằng 0
+        if (sigma < 1e-6) { // Bỏ qua trường hợp sigma bằng 0
+            cerr << "Cảnh báo: Giá trị kỳ dị sigma[" << i << "] = 0, bỏ qua cột tương ứng." << endl;
+            continue;
         }
 
         // Lấy cột thứ i của V (V[:, i])
@@ -109,7 +117,37 @@ Matrix calculateU(const Matrix &A, const Matrix &V, const Matrix &Sigma) {
 
         // Chuẩn hóa bằng cách chia cho sigma_i
         for (int j = 0; j < m; ++j)
-            U[j][i] = ui[j] / sigma;
+            U[j][validColumns] = ui[j] / sigma;
+
+        validColumns++;
+    }
+
+    // Hoàn thiện các cột còn thiếu bằng vector trực giao
+    for (int i = validColumns; i < m; ++i) {
+        vector<double> orthogonal(m, 0);
+        orthogonal[i] = 1.0; // Vector đơn vị
+        for (int j = 0; j < validColumns; ++j) {
+            vector<double> uj(m);
+            for (int k = 0; k < m; ++k)
+                uj[k] = U[k][j];
+
+            // Loại bỏ thành phần trùng tuyến
+            double dot = 0;
+            for (int k = 0; k < m; ++k)
+                dot += orthogonal[k] * uj[k];
+
+            for (int k = 0; k < m; ++k)
+                orthogonal[k] -= dot * uj[k];
+        }
+
+        // Chuẩn hóa vector trực giao
+        double norm = 0;
+        for (double x : orthogonal)
+            norm += x * x;
+        norm = sqrt(norm);
+
+        for (int j = 0; j < m; ++j)
+            U[j][i] = orthogonal[j] / norm;
     }
 
     return U;
@@ -124,9 +162,9 @@ void roundMatrix(Matrix &A) {
 int main() {
     // Ma trận A đầu vào
     Matrix A = {
-        {1, 2},
-        {3, 4},
-        {5, 6}
+        {2, 4, 8},
+        {4, 8, 16},
+        {1, 2, 3}
     };
 
     int m = A.size();
@@ -154,21 +192,21 @@ int main() {
     roundMatrix(V);
 
     // Xuất kết quả
-    cout << "Ma trận U:\n";
+    cout << "Ma tran U:\n";
     for (const auto &row : U) {
         for (double x : row)
             cout << x << " ";
         cout << "\n";
     }
 
-    cout << "Ma trận Sigma:\n";
+    cout << "Ma tran Sigma:\n";
     for (const auto &row : Sigma) {
         for (double x : row)
             cout << x << " ";
         cout << "\n";
     }
 
-    cout << "Ma trận V:\n";
+    cout << "Ma tran V:\n";
     for (const auto &row : V) {
         for (double x : row)
             cout << x << " ";
