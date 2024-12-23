@@ -6,7 +6,7 @@
 using namespace std;
 using Matrix = vector<vector<double>>;
 
-int epsilon = 1e-5;
+double epsilon = 1e-5;
 
 Matrix transposeMatrix(const Matrix &A) {
     int m = A.size(), n = A[0].size();
@@ -89,20 +89,19 @@ Matrix calculateSigma(const vector<double> &eigenValues, int m, int n) {
 }
 
 Matrix calculateU(const Matrix &A, const Matrix &V, const Matrix &Sigma) {
-    int m = A.size();        // Số dòng của A
-    int n = A[0].size();     // Số cột của A
-    int r = Sigma.size();    // Số giá trị kỳ dị (rank của A)
+    int m = A.size();
+    int n = A[0].size();
+    int r = min(Sigma.size(), Sigma[0].size());
+    Matrix U(m, vector<double>(m, 0));
 
-    Matrix U(m, vector<double>(m, 0));  // Kích thước U: m x m
+    int validColumns = 0;  // Đếm số lượng các cột hợp lệ đã được chuẩn hóa
+    vector<int> validColumnOrders;
 
-    int validColumns = 0; // Đếm số cột hợp lệ trong U
     for (int i = 0; i < r; ++i) {
-        // Lấy giá trị kỳ dị sigma_i
         double sigma = Sigma[i][i];
-        if (sigma < 1e-6) { // Bỏ qua trường hợp sigma bằng 0
-            cerr << "Cảnh báo: Giá trị kỳ dị sigma[" << i << "] = 0, bỏ qua cột tương ứng." << endl;
-            continue;
-        }
+
+        // Kiểm tra sigma gần bằng 0 và bỏ qua cột nếu cần
+        if (fabs(sigma) < epsilon) continue; 
 
         // Lấy cột thứ i của V (V[:, i])
         vector<double> vi(n);
@@ -115,42 +114,75 @@ Matrix calculateU(const Matrix &A, const Matrix &V, const Matrix &Sigma) {
             for (int k = 0; k < n; ++k)
                 ui[j] += A[j][k] * vi[k];
 
-        // Chuẩn hóa bằng cách chia cho sigma_i
-        for (int j = 0; j < m; ++j)
-            U[j][validColumns] = ui[j] / sigma;
+        // Chuẩn hóa
+        double norm = 0;
+        for (int j = 0; j < m; ++j) {
+            ui[j] /= sigma;
+            norm += ui[j] * ui[j];
+        }
+        norm = sqrt(norm);
 
+        // Kiểm tra xem norm có đủ lớn không
+        if (norm < epsilon) {
+            fill(ui.begin(), ui.end(), 1.0); // Hoặc chọn giá trị khác thay thế
+            norm = 1.0;
+        }
+
+        // Lưu cột đã chuẩn hóa vào ma trận U
+        for (int j = 0; j < m; ++j)
+            U[j][validColumns] = ui[j] / norm;
+
+        // Tăng validColumns sau mỗi lần chuẩn hóa thành công
+        validColumnOrders.push_back(i);
         validColumns++;
     }
 
-    // Hoàn thiện các cột còn thiếu bằng vector trực giao
+    // Hoàn thiện các cột còn thiếu bằng trực giao hóa
     for (int i = validColumns; i < m; ++i) {
         vector<double> orthogonal(m, 0);
-        orthogonal[i] = 1.0; // Vector đơn vị
-        for (int j = 0; j < validColumns; ++j) {
-            vector<double> uj(m);
-            for (int k = 0; k < m; ++k)
-                uj[k] = U[k][j];
+        orthogonal[i] = 1.0;
 
-            // Loại bỏ thành phần trùng tuyến
+        // Trực giao hóa với các cột đã có
+        for (int j = 0; j < validColumns; ++j) {
             double dot = 0;
             for (int k = 0; k < m; ++k)
-                dot += orthogonal[k] * uj[k];
+                dot += orthogonal[k] * U[k][j];
 
             for (int k = 0; k < m; ++k)
-                orthogonal[k] -= dot * uj[k];
+                orthogonal[k] -= dot * U[k][j];
         }
 
-        // Chuẩn hóa vector trực giao
+        // Tính lại norm của cột
         double norm = 0;
         for (double x : orthogonal)
             norm += x * x;
         norm = sqrt(norm);
 
+        // Kiểm tra lại norm trước khi chuẩn hóa
+        if (norm < epsilon) {
+            continue;
+        }
+
+        // Chuẩn hóa và lưu cột vào U
         for (int j = 0; j < m; ++j)
             U[j][i] = orthogonal[j] / norm;
     }
 
-    return U;
+    Matrix newU(m, vector<double>(m, 0));
+    int count = 0;
+    for (int i = 0; i < m; ++i) {
+        if (count < validColumns && i == validColumnOrders[count]) {
+            for (int j = 0; j < m; ++j)
+                newU[j][i] = U[j][count];
+            count++;
+        } else {
+            for (int j = 0; j < m; ++j)
+                newU[j][i] = U[j][validColumns + count];
+        }
+    }
+
+
+    return newU;
 }
 
 void roundMatrix(Matrix &A) {
